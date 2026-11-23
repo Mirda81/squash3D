@@ -1,0 +1,30 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'cz.mirda.squash3d'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'cz.mirda.squash3d'
+        minSdk 24
+        targetSdk 34
+        versionCode((project.findProperty('vc') ?: '1') as Integer)
+        versionName "1.0.${project.findProperty('vc') ?: '1'}"
+    }
+    signingConfigs {
+        // testovací klíč (stejný pro každý build, aby šla appka aktualizovat přes sebe)
+        test {
+            storeFile file('squash3d-test.keystore')
+            storePassword 'squash3d'
+            keyAlias 'squash3d'
+            keyPassword 'squash3d'
+        }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.test }
+        debug { signingConfig signingConfigs.test }
+    }
+    androidResources { noCompress += ['wasm', 'task'] }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+
+dependencies { implementation 'androidx.webkit:webkit:1.11.0' }

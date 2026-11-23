@@ -1,0 +1,9 @@
+node_modules/
+www/game.js
+www/wasm/
+www/models/*.task
+android/.gradle/
+android/app/build/
+android/build/
+android/app/src/main/assets/
+android/local.properties

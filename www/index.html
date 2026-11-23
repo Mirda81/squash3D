@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05060c">
+<title>Squash 3D</title>
+<style>
+  :root { --c0: #38d6ff; --c1: #ff4f7a; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #05060c; color: #fff;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; user-select: none; }
+  #stage, #stage canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .hidden { display: none !important; }
+  #vignette { position: fixed; inset: 0; pointer-events: none; z-index: 1; background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%); }
+  .panel { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column;
+    background: radial-gradient(ellipse at center, rgba(5,6,12,.35), rgba(5,6,12,.85)); z-index: 5; padding: 3vh 4vw; }
+  .logo { font-weight: 900; font-size: clamp(42px, 10vw, 150px); letter-spacing: .04em; line-height: .9; font-style: italic;
+    background: linear-gradient(90deg, var(--c0), #fff 50%, var(--c1)); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 24px rgba(56,214,255,.45)); text-align: center; }
+  .tag { opacity: .75; letter-spacing: .35em; font-size: clamp(11px, 1.6vw, 22px); margin: 1.2vh 0 4vh; text-transform: uppercase; text-align: center; }
+  .btns { display: flex; flex-direction: column; gap: 1.4vh; width: min(560px, 88vw); }
+  button { font: inherit; color: #fff; border: 2px solid rgba(255,255,255,.18); background: rgba(16,20,36,.72); border-radius: 14px;
+    padding: 1.6vh 20px; font-size: clamp(15px, 2.2vw, 30px); font-weight: 800; letter-spacing: .06em; cursor: pointer;
+    backdrop-filter: blur(6px); transition: transform .12s, border-color .12s, box-shadow .12s; outline: none; }
+  button.big { background: linear-gradient(90deg, rgba(56,214,255,.28), rgba(255,79,122,.28)); border-color: rgba(255,255,255,.35); font-size: clamp(18px, 2.8vw, 38px); }
+  button:hover, button:focus { transform: scale(1.03); border-color: #fff; box-shadow: 0 0 22px rgba(56,214,255,.6), 0 0 44px rgba(255,79,122,.35); }
+  .opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1vh 12px; width: min(760px, 92vw); margin-top: 3vh; }
+  .opts button { font-size: clamp(11px, 1.4vw, 18px); padding: 1.1vh 10px; font-weight: 600; }
+  .opts b { color: var(--c0); margin-left: 6px; }
+  .hint { opacity: .6; font-size: clamp(10px, 1.2vw, 16px); margin-top: 2.5vh; text-align: center; line-height: 1.5; }
+
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 3; }
+  #score { position: absolute; top: 2.2vh; left: 50%; transform: translateX(-50%); display: flex; align-items: stretch;
+    border-radius: 14px; overflow: hidden; box-shadow: 0 6px 30px rgba(0,0,0,.6); font-weight: 900; }
+  #score .side { display: flex; align-items: center; gap: 12px; padding: .7vh 18px; font-size: clamp(14px, 2vw, 30px); background: rgba(10,12,22,.85); letter-spacing: .08em; }
+  #score .p0 { border-left: 6px solid var(--c0); } #score .p1 { border-right: 6px solid var(--c1); flex-direction: row-reverse; }
+  #score .num { font-size: clamp(26px, 4.2vw, 64px); min-width: 1.3em; text-align: center; background: #fff; color: #0a0c16; padding: 0 .25em; display: flex; align-items: center; justify-content: center; }
+  #score .n0 { color: #0a3d66; } #score .n1 { color: #6b0c22; }
+  .srv { width: 12px; height: 12px; border-radius: 50%; background: #ffd84a; box-shadow: 0 0 12px #ffd84a; transition: opacity .3s; }
+  #score.flash .num { animation: flash .6s; }
+  @keyframes flash { 0% { transform: scale(1.5); background: #ffd84a; } 100% { transform: scale(1); } }
+  #turn { position: absolute; top: calc(2.2vh + clamp(40px, 6vw, 84px)); left: 50%; transform: translateX(-50%); font-weight: 800; letter-spacing: .25em;
+    font-size: clamp(11px, 1.4vw, 20px); text-shadow: 0 0 12px currentColor; }
+  #banner { position: absolute; top: 38%; left: 0; right: 0; text-align: center; opacity: 0; }
+  #banner.show { animation: pop 2s ease-out forwards; }
+  #bannerText { font-size: clamp(40px, 9vw, 150px); font-weight: 900; font-style: italic; letter-spacing: .03em; text-shadow: 0 0 30px rgba(255,255,255,.5), 0 6px 0 rgba(0,0,0,.4); }
+  #bannerSub { font-size: clamp(14px, 2.2vw, 34px); font-weight: 800; letter-spacing: .2em; margin-top: 1vh; text-shadow: 0 0 16px currentColor; }
+  @keyframes pop { 0% { opacity: 0; transform: scale(2.2); } 12% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: scale(.96); } }
+  #cam { position: fixed; right: 1.5vw; bottom: 2vh; width: clamp(140px, 18vw, 360px); aspect-ratio: 16/9; border-radius: 12px; border: 2px solid rgba(255,255,255,.25); z-index: 4; display: none; box-shadow: 0 4px 24px rgba(0,0,0,.6); }
+  #menuBtn { position: fixed; left: 1.5vw; top: 2vh; pointer-events: auto; font-size: 14px; padding: 8px 14px; z-index: 4; }
+  body.menu #menuBtn { display: none; }
+  .calps { display: flex; gap: 4vw; margin: 3vh 0; }
+  .calp { width: min(34vw, 300px); padding: 2.5vh 2vw; border-radius: 18px; border: 3px solid rgba(255,255,255,.2); background: rgba(10,12,22,.75); text-align: center; transition: all .2s; }
+  .calp h3 { margin: 0 0 1vh; font-size: clamp(18px, 3vw, 44px); font-weight: 900; }
+  .calp .st { font-size: clamp(12px, 1.6vw, 22px); opacity: .8; letter-spacing: .1em; }
+  #cal0 h3 { color: var(--c0); } #cal1 h3 { color: var(--c1); }
+  #cal0.seen { border-color: var(--c0); } #cal1.seen { border-color: var(--c1); }
+  .calp.ready { box-shadow: 0 0 40px currentColor; background: rgba(40,60,40,.8); }
+  #calibMsg { text-align: center; font-size: clamp(13px, 1.9vw, 26px); line-height: 1.5; max-width: 900px; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .row button { font-size: clamp(12px, 1.5vw, 20px); padding: 1vh 18px; }
+  #calib { justify-content: flex-start; padding-top: 3vh; }
+  #calStep { font-weight: 900; font-style: italic; font-size: clamp(22px, 4vw, 60px); letter-spacing: .04em; background: linear-gradient(90deg, var(--c0), #fff, var(--c1)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #calibMsg { margin: 1vh 0 1.5vh; }
+  .calps { margin: 0; gap: 2vw; width: 100%; justify-content: space-between; position: fixed; top: 34vh; left: 0; padding: 0 2vw; }
+  .calp { width: min(23vw, 300px); padding: 1.6vh 1.2vw; }
+  .bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,.15); margin-top: 1.2vh; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--c0), #7dffa0); transition: width .1s; }
+  .calrow { position: fixed; bottom: 2vh; left: 0; right: 0; }
+  body.calib #cam { display: block; width: min(48vw, 78vh); left: 50%; right: auto; bottom: 9vh; transform: translateX(-50%); z-index: 6; border-color: rgba(255,255,255,.6); }
+  #rally { position: absolute; top: calc(2.2vh + clamp(64px, 8.5vw, 116px)); left: 50%; transform: translateX(-50%) scale(.6); opacity: 0; font-weight: 900; font-style: italic;
+    font-size: clamp(14px, 2vw, 30px); letter-spacing: .1em; transition: all .2s; color: #fff; text-shadow: 0 0 14px #7dd8ff; }
+  #rally.on { opacity: 1; transform: translateX(-50%) scale(1); }
+  #rally.hot { color: #ffb040; text-shadow: 0 0 18px #ff6a00, 0 0 40px #ff3d00; animation: pulse .5s infinite alternate; }
+  @keyframes pulse { to { transform: translateX(-50%) scale(1.12); } }
+  #flash { position: fixed; inset: 0; pointer-events: none; z-index: 2; background: radial-gradient(circle, rgba(255,190,90,.35), transparent 70%); opacity: 0; }
+  #flash.go { animation: fl .35s ease-out; }
+  @keyframes fl { 0% { opacity: 1; } 100% { opacity: 0; } }
+  #loading { font-weight: 900; letter-spacing: .3em; font-size: 22px; background: #05060c; z-index: 20; }
+  #overTitle { font-size: clamp(40px, 8vw, 130px); font-weight: 900; font-style: italic; text-shadow: 0 0 40px currentColor; }
+  #overScore { font-size: clamp(30px, 5vw, 80px); font-weight: 900; margin: 1vh 0 4vh; }
+</style>
+</head>
+<body class="menu">
+<div id="stage"></div>
+<div id="vignette"></div>
+<div id="flash"></div>
+<div id="loading" class="panel">NAČÍTÁM…</div>
+
+<div id="hud" class="hidden">
+  <div id="score">
+    <div class="side p0"><span>MODRÝ</span><span class="srv" id="srv0"></span></div>
+    <div class="num n0" id="s0">0</div>
+    <div class="num n1" id="s1">0</div>
+    <div class="side p1"><span>ČERVENÝ</span><span class="srv" id="srv1"></span></div>
+  </div>
+  <div id="turn"></div>
+  <div id="rally"></div>
+  <div id="banner"><div id="bannerText"></div><div id="bannerSub"></div></div>
+  <button id="menuBtn">☰ MENU</button>
+</div>
+<canvas id="cam"></canvas>
+
+<div id="menu" class="panel">
+  <div class="logo">SQUASH 3D</div>
+  <div class="tag">pohybová hra · kamera · 2 hráči</div>
+  <div class="btns">
+    <button id="play2" class="big">👥 2 HRÁČI · KAMERA</button>
+    <button id="play1">🧍 1 HRÁČ vs CPU · KAMERA</button>
+    <button id="playK">⌨️ KLÁVESNICE / OVLADAČ</button>
+  </div>
+  <div class="opts">
+    <button id="optSpeed">RYCHLOST<b></b></button>
+    <button id="optAssist">ASISTENCE<b></b></button>
+    <button id="optQuality">GRAFIKA<b></b></button>
+    <button id="optCamera">KAMERA<b></b></button>
+    <button id="optTarget">HRA DO<b></b></button>
+  </div>
+  <div class="hint">Mobil postav na stojan nebo opři, ať vidí oba hráče celé (2–3 m). Na TV: zrcadlení obrazovky / Chromecast.<br>
+  Krok do strany = pohyb · rychlé máchnutí rukou = úder · máchnutí nahoru = lob · máchnutí doleva/doprava = směr</div>
+</div>
+
+<div id="calib" class="panel hidden">
+  <div id="calStep">KALIBRACE</div>
+  <div id="calibMsg"></div>
+  <div class="calps">
+    <div class="calp" id="cal0"><h3>MODRÝ</h3><div class="st">nevidím tě</div><div class="bar"><i></i></div></div>
+    <div class="calp" id="cal1"><h3>ČERVENÝ</h3><div class="st">nevidím tě</div><div class="bar"><i></i></div></div>
+  </div>
+  <div class="row calrow"><button id="calibBack">← ZPĚT</button><button id="calibKeys">HRÁT NA KLÁVESNICI</button></div>
+</div>
+
+<div id="over" class="panel hidden">
+  <div id="overTitle"></div>
+  <div id="overScore"></div>
+  <div class="row"><button id="again" class="big">🔁 ODVETA</button><button id="toMenu">MENU</button></div>
+  <div class="hint">nebo oba zvedněte ruce nad hlavu</div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
